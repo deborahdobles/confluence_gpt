@@ -1,0 +1,21 @@
+# Ignore Python cache and compiled files
+__pycache__/
+*.pyc
+
+# Exclude environment variables
+.env
+
+# Exclude database files
+*.db
+*.sql
+
+# Exclude backups
+*backup*
+reports_backup.json
+
+# Exclude Conda environment files
+.conda
+
+# Ignore system or editor files
+.DS_Store
+.vscode/
