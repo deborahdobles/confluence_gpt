@@ -5,7 +5,9 @@ import sqlite3
 import openai
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
+import db_setup
 
+db_setup.setup_database()
 load_dotenv()
 
 BASE_URL = os.getenv("CONFLUENCE_BASE_URL")
