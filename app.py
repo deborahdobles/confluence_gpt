@@ -1,16 +1,14 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sqlite3
-import openai
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 import os
+import openai
+
 
 # Load environment variables
 load_dotenv()
-
-# Set OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -18,10 +16,13 @@ CORS(app)
 
 DB_FILE = "incidencias.db"
 
+# Set OpenAI API key
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
 
 def search_incidents_in_db(keyword):
     """
-    Busca incidencias relacionadas con la palabra clave en la base de datos.
+    Searches for incidents related to the given keyword in the database.
     """
     try:
         conn = sqlite3.connect(DB_FILE)
@@ -62,13 +63,11 @@ def search_incidents_in_db(keyword):
 
 def ask_gpt(incidents, keyword):
     """
-    Envia los incidentes encontrados a GPT para generar un resumen.
+    Sends the found incidents to GPT for generating a summary.
     """
-    context = f"La consulta se relaciona con la palabra clave: '{keyword}'. Por favor, revisa las siguientes incidencias y confirma cuáles están relacionadas con '{keyword}':\n\n"
-    for i, (title, content) in enumerate(incidents[:10], start=1):
+    context = f"Consulta: '{keyword}'\n\nIncidencias encontradas:\n\n"
+    for i, (title, content) in enumerate(incidents[:10], start=1):  # Limit to 10 incidents for brevity
         context += f"Incidencia {i}:\nTítulo: {title}\nContenido: {content[:500]}...\n\n"
-
-    print(f"GPT context:\n{context}")  # Debug print
 
     try:
         response = openai.ChatCompletion.create(
@@ -80,13 +79,10 @@ def ask_gpt(incidents, keyword):
             max_tokens=1000,
             temperature=0.7
         )
-        gpt_output = response['choices'][0]['message']['content']
-        print(f"GPT response:\n{gpt_output}")  # Debug print
-        return gpt_output
-
-    except Exception as e:
-        print(f"Error with GPT request: {e}")
-        return "Error al procesar la solicitud con GPT."
+        return response['choices'][0]['message']['content']
+    except openai.error.OpenAIError as e:
+        print(f"OpenAI API Error: {e}")
+        return f"Error while processing the GPT request: {e}"
 
 
 @app.route('/query', methods=['POST'])
@@ -102,14 +98,24 @@ def query():
 
     # Search incidents in the database
     incidents = search_incidents_in_db(keyword)
-    print(f"Incidents found: {incidents}")
+    print(f"Incidents found: {incidents}")  # Debugging
 
-    # Process incidents with GPT
-    gpt_response = ask_gpt(incidents, keyword)
+    # Check if incidents were found
+    if not incidents:
+        response_message = f"No se encontraron incidencias relacionadas con la palabra clave '{keyword}'."
+        print(f"Response sent to client: {response_message}")
+        return jsonify({"response": response_message})
+
+    # If results are found, construct a response
+    response_message = {
+        "incidencias": [
+            {"titulo": title, "contenido": content} for title, content in incidents
+        ]
+    }
 
     # Send response back
-    print(f"Response sent to client: {gpt_response}")
-    return jsonify({"response": gpt_response})
+    print(f"Response sent to client: {response_message}")
+    return jsonify(response_message)
 
 
 if __name__ == '__main__':
