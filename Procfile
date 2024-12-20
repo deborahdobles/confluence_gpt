@@ -1,2 +1,2 @@
 web: python app.py
-web: gunicorn app:app
+web: python db_setup.py && gunicorn app:app
