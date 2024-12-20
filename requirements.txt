@@ -4,3 +4,4 @@ flask_cors
 openai
 beautifulsoup4
 gunicorn
+requests
