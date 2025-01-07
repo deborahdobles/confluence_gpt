@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 import openai
 import psycopg2
+from psycopg2 import sql
 from psycopg2.extras import RealDictCursor
 
 # Load environment variables
@@ -15,11 +16,11 @@ app = Flask(__name__)
 CORS(app)
 
 # PostgreSQL connection details
-DB_HOST = os.getenv("POSTGRES_HOST")
-DB_PORT = os.getenv("POSTGRES_PORT")
-DB_NAME = os.getenv("POSTGRES_DB")
-DB_USER = os.getenv("POSTGRES_USER")
-DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+PGHOST = os.getenv("PGHOST")
+PGPORT = os.getenv("PGPORT")
+PGDATABASE = os.getenv("PGDATABASE")
+PGUSER = os.getenv("PGUSER")
+PGPASSWORD = os.getenv("PGPASSWORD")
 
 # Set OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -31,11 +32,11 @@ def get_db_connection():
     """
     try:
         conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD,
+            host=PGHOST,
+            port=PGPORT,
+            database=PGDATABASE,
+            user=PGUSER,
+            password=PGPASSWORD,
             cursor_factory=RealDictCursor
         )
         return conn
@@ -48,15 +49,17 @@ def search_incidents_in_db(keyword):
     """
     Searches for incidents related to the given keyword in the PostgreSQL database.
     """
+    conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
         # Query database
-        cursor.execute("""
+        query = """
         SELECT title, content FROM incidencias
         WHERE title ILIKE %s OR content ILIKE %s
-        """, (f"%{keyword}%", f"%{keyword}%"))
+        """
+        cursor.execute(query, (f"%{keyword}%", f"%{keyword}%"))
 
         results = cursor.fetchall()
         print(f"Results from DB for keyword '{keyword}': {results}")
@@ -72,7 +75,7 @@ def search_incidents_in_db(keyword):
 @app.route('/query', methods=['POST'])
 def query():
     """
-    Endpoint para buscar incidencias por palabra clave.
+    Endpoint to search incidents by keyword.
     """
     data = request.json
     keyword = data.get('keyword', '')

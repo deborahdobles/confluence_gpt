@@ -1,13 +1,13 @@
 import os
 import requests
 import base64
-import sqlite3
 import openai
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
-import db_setup
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
-db_setup.setup_database()
+# Load environment variables
 load_dotenv()
 
 BASE_URL = os.getenv("CONFLUENCE_BASE_URL")
@@ -15,8 +15,33 @@ API_TOKEN = os.getenv("CONFLUENCE_API_TOKEN")
 EMAIL = os.getenv("CONFLUENCE_EMAIL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+PGHOST = os.getenv("PGHOST")
+PGPORT = os.getenv("PGPORT")
+PGDATABASE = os.getenv("PGDATABASE")
+PGUSER = os.getenv("PGUSER")
+PGPASSWORD = os.getenv("PGPASSWORD")
+
 auth_string = f"{EMAIL}:{API_TOKEN}"
 auth_header = base64.b64encode(auth_string.encode()).decode()
+
+
+def get_db_connection():
+    """
+    Establishes a connection to the PostgreSQL database.
+    """
+    try:
+        conn = psycopg2.connect(
+            host=PGHOST,
+            port=PGPORT,
+            database=PGDATABASE,
+            user=PGUSER,
+            password=PGPASSWORD,
+            cursor_factory=RealDictCursor
+        )
+        return conn
+    except Exception as e:
+        print(f"Database connection failed: {e}")
+        raise
 
 
 def fetch_page_content(page_id):
@@ -96,27 +121,19 @@ def fetch_all_reports(parent_id):
 
 def update_database_from_confluence(parent_id):
     """
-    Synchronize incidents from Confluence with the SQLite database.
+    Synchronize incidents from Confluence with the PostgreSQL database.
     """
     reports = fetch_all_reports(parent_id)
 
-    conn = sqlite3.connect("incidencias.db")
+    conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Verificar si la tabla existe
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS incidencias (
-        title TEXT PRIMARY KEY,
-        content TEXT,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
-
+    # Insert or update data in the database
     for report in reports:
         cursor.execute("""
         INSERT INTO incidencias (title, content)
-        VALUES (?, ?)
-        ON CONFLICT(title) DO UPDATE SET content = excluded.content, last_updated = CURRENT_TIMESTAMP
+        VALUES (%s, %s)
+        ON CONFLICT(title) DO UPDATE SET content = EXCLUDED.content, last_updated = CURRENT_TIMESTAMP
         """, (report['title'], report['content']))
 
     conn.commit()
@@ -126,7 +143,7 @@ def update_database_from_confluence(parent_id):
 
 def clean_html(raw_html):
     """
-    Limpia el contenido HTML y extrae solo el texto.
+    Cleans HTML content and extracts text.
     """
     soup = BeautifulSoup(raw_html, "html.parser")
     return soup.get_text()
@@ -134,27 +151,27 @@ def clean_html(raw_html):
 
 def search_incidents_in_db(keyword):
     """
-    Busca incidencias relacionadas con la palabra clave en la base de datos y limpia el contenido HTML.
+    Searches for incidents related to the keyword in the PostgreSQL database.
     """
-    conn = sqlite3.connect("incidencias.db")
+    conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
+    query = """
     SELECT title, content FROM incidencias
-    WHERE title LIKE ? OR content LIKE ?
-    """, (f"%{keyword}%", f"%{keyword}%"))
-
+    WHERE title ILIKE %s OR content ILIKE %s
+    """
+    cursor.execute(query, (f"%{keyword}%", f"%{keyword}%"))
     results = cursor.fetchall()
     conn.close()
 
-    # Limpia el contenido HTML
-    cleaned_results = [(title, clean_html(content)) for title, content in results]
+    # Clean HTML content
+    cleaned_results = [{"title": row["title"], "content": clean_html(row["content"])} for row in results]
     return cleaned_results
 
 
 def ask_gpt_about_query(keyword):
     """
-    Consulta a GPT sobre incidencias relacionadas con una palabra clave.
+    Ask GPT about incidents related to a keyword.
     """
     incidents = search_incidents_in_db(keyword)
 
@@ -162,12 +179,10 @@ def ask_gpt_about_query(keyword):
         return f"No se encontraron incidencias relacionadas con '{keyword}'."
 
     context = f"Consulta: '{keyword}'\n\nIncidencias encontradas:\n\n"
-    for i, (title, content) in enumerate(incidents[:10], start=1):
-        context += f"Incidencia {i}:\nTítulo: {title}\nContenido Completo: {content[:500]}...\n\n"
+    for i, incident in enumerate(incidents[:10], start=1):
+        context += f"Incidencia {i}:\nTítulo: {incident['title']}\nContenido Completo: {incident['content'][:500]}...\n\n"
     print("\nContexto enviado a GPT:")
     print(context)
-
-    openai.api_key = OPENAI_API_KEY
 
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",

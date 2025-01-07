@@ -7,11 +7,11 @@ import os
 load_dotenv()
 
 # PostgreSQL connection details
-DB_HOST = os.getenv("POSTGRES_HOST")
-DB_PORT = os.getenv("POSTGRES_PORT")
-DB_NAME = os.getenv("POSTGRES_DB")
-DB_USER = os.getenv("POSTGRES_USER")
-DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+PGHOST = os.getenv("PGHOST")
+PGPORT = os.getenv("PGPORT")
+PGDATABASE = os.getenv("PGDATABASE")
+PGUSER = os.getenv("PGUSER")
+PGPASSWORD = os.getenv("PGPASSWORD")
 
 
 def setup_database():
@@ -21,11 +21,11 @@ def setup_database():
     """
     try:
         conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
+            host=PGHOST,
+            port=PGPORT,
+            database=PGDATABASE,
+            user=PGUSER,
+            password=PGPASSWORD,
         )
         cursor = conn.cursor()
 
