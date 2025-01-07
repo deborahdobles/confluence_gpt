@@ -1,7 +1,8 @@
-python-dotenv>=1.0.0
 flask
 flask_cors
 openai
+python-dotenv
 beautifulsoup4
 gunicorn
 requests
+psycopg2
