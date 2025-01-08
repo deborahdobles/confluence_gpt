@@ -15,11 +15,11 @@ API_TOKEN = os.getenv("CONFLUENCE_API_TOKEN")
 EMAIL = os.getenv("CONFLUENCE_EMAIL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-PGHOST = os.getenv("PGHOST")
-PGPORT = os.getenv("PGPORT")
-PGDATABASE = os.getenv("PGDATABASE")
-PGUSER = os.getenv("PGUSER")
-PGPASSWORD = os.getenv("PGPASSWORD")
+PGHOST = os.getenv("PGHOST", "localhost")
+PGPORT = os.getenv("PGPORT", "5432")
+PGDATABASE = os.getenv("PGDATABASE", "railway")
+PGUSER = os.getenv("PGUSER", "postgres")
+PGPASSWORD = os.getenv("PGPASSWORD", "PKUuNurNJXrquDGWfIyBEFhwLURkPBDw")
 
 auth_string = f"{EMAIL}:{API_TOKEN}"
 auth_header = base64.b64encode(auth_string.encode()).decode()

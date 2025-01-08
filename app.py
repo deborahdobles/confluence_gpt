@@ -16,11 +16,11 @@ app = Flask(__name__)
 CORS(app)
 
 # PostgreSQL connection details
-PGHOST = os.getenv("PGHOST")
-PGPORT = os.getenv("PGPORT")
-PGDATABASE = os.getenv("PGDATABASE")
-PGUSER = os.getenv("PGUSER")
-PGPASSWORD = os.getenv("PGPASSWORD")
+PGHOST = os.getenv("PGHOST", "localhost")
+PGPORT = os.getenv("PGPORT", "5432")
+PGDATABASE = os.getenv("PGDATABASE", "railway")
+PGUSER = os.getenv("PGUSER", "postgres")
+PGPASSWORD = os.getenv("PGPASSWORD", "PKUuNurNJXrquDGWfIyBEFhwLURkPBDw")
 
 # Set OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
